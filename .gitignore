@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Generated data
+*.json
+*.out
+*.err
+
+# Model cache
+model_cache/
+
+# Other
+*.log
+*.tmp
+*.swp
+*.swo
