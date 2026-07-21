@@ -9,10 +9,10 @@ _model = None
 
 
 def get_model():
-    """Get or initialize the SentenceTransformer model."""
+    """Get or initialize the SentenceTransformer multilingual model."""
     global _model
     if _model is None:
-        _model = SentenceTransformer('all-MiniLM-L6-v2')
+        _model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
     return _model
 
 
@@ -27,7 +27,7 @@ def generate_embedding(text: str):
     return model.encode(text, convert_to_tensor=True)
 
 
-def validate_user_input(user_input: str, current_sub_goal: str, threshold: float = 0.35) -> Dict[str, Any]:
+def validate_user_input(user_input: str, current_sub_goal: str, threshold: float = 0.30) -> Dict[str, Any]:
     """
     Evaluate whether user_input is a reasonable attempt to engage with the lesson state
     or an explicit off-topic distraction using local embedding-based classification.
@@ -35,7 +35,7 @@ def validate_user_input(user_input: str, current_sub_goal: str, threshold: float
     Args:
         user_input: The user's input to evaluate
         current_sub_goal: The current sub-goal of the lesson
-        threshold: Cosine similarity threshold for relevance (default: 0.35)
+        threshold: Cosine similarity threshold for relevance (default: 0.30 for cross-lingual)
         
     Returns:
         Dict with 'is_relevant' (bool), 'score' (float), and 'rationale' (str)

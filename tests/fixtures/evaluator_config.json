@@ -8,8 +8,8 @@
     }
   },
   "input_relevance": {
-    "similarity_threshold": 0.35,
-    "embedding_model": "all-MiniLM-L6-v2",
+    "similarity_threshold": 0.30,
+    "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
     "expected_output_format": {
       "is_relevant": "boolean",
       "score": "float",

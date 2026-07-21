@@ -1,6 +1,8 @@
 import os
+import asyncio
 from typing import Dict, Any
 from pydantic import BaseModel, Field
+from openai import AsyncOpenAI
 from src.llm_client import get_llm_client
 
 
@@ -10,9 +12,22 @@ class TopicAdherenceResult(BaseModel):
     rationale: str = Field(..., description="Brief explanation of why the response is or isn't on topic")
 
 
-def validate_topic_adherence(response_text: str, current_sub_goal: str) -> Dict[str, Any]:
+def _get_async_client():
+    """Initialize and return an AsyncOpenAI client."""
+    api_key = os.getenv("TRACE_LLM_API_KEY_TEST")
+    base_url = os.getenv("TRACE_LLM_BASE_URL")
+    model_id = os.getenv("TEST_MODEL_ID", "qwen3-235b-a22b-instruct-2507")
+
+    client = AsyncOpenAI(
+        api_key=api_key,
+        base_url=base_url
+    )
+    return client, model_id
+
+
+async def validate_topic_adherence(response_text: str, current_sub_goal: str) -> Dict[str, Any]:
     """
-    Evaluate whether response_text adheres to current_sub_goal using the LLM client.
+    Evaluate whether response_text adheres to current_sub_goal using the async LLM client.
     
     Args:
         response_text: The response to evaluate
@@ -21,7 +36,7 @@ def validate_topic_adherence(response_text: str, current_sub_goal: str) -> Dict[
     Returns:
         Dict with 'is_on_topic' (bool) and 'rationale' (str)
     """
-    client, model_id = get_llm_client()
+    client, model_id = _get_async_client()
     
     prompt = f"""Evaluate whether the following response is a proper language tutor response that stays on the current sub-goal, or if it is a refusal/pivot indicating the user's input was off-topic.
 
@@ -32,7 +47,7 @@ Response: {response_text}
 Does the response adhere to the current sub-goal as a proper language tutor response? Return a JSON object with 'is_on_topic' (boolean) and 'rationale' (string) fields. If the response begins with an apology, refusal, or indicates the user's input was off-topic or outside the tutor's scope, set is_on_topic to False, even if it later pivots to relevant content."""
 
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model=model_id,
             messages=[
                 {"role": "system", "content": "You are an evaluator that checks if responses adhere to a given sub-goal. Return only valid JSON with 'is_on_topic' and 'rationale' fields."},

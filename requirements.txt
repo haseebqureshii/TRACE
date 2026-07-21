@@ -6,3 +6,4 @@ outlines
 guardrails-ai
 sentence-transformers
 torch
+pytest-asyncio
