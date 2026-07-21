@@ -1,0 +1,8 @@
+python-dotenv
+openai
+pydantic
+nemoguardrails
+outlines
+guardrails-ai
+sentence-transformers
+torch

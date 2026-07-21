@@ -1,18 +1,228 @@
+# =========================
+
+# Operating System
+
+# =========================
+
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.Spotlight-V100/
+.Trashes/
+
+# =========================
+
+# Editor / IDE
+
+# =========================
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+.idea/
+*.iml
+
+*.swp
+*.swo
+*~
+
+# =========================
+
 # Python
-__pycache__/
+
+# =========================
+
+**pycache**/
 *.py[cod]
 *$py.class
 
-# Generated data
-*.json
-*.out
-*.err
+.Python
 
-# Model cache
-model_cache/
+.venv/
+venv/
+env/
+ENV/
 
-# Other
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.hypothesis/
+
+.coverage
+.coverage.*
+htmlcov/
+
+dist/
+build/
+site/
+
+*.egg
+*.egg-info/
+.eggs/
+
+pip-wheel-metadata/
+
+# =========================
+
+# Node.js
+
+# =========================
+
+node_modules/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+.npm/
+.pnpm-store/
+
+.next/
+.nuxt/
+.svelte-kit/
+.parcel-cache/
+
+coverage/
+
+# =========================
+
+# TypeScript
+
+# =========================
+
+*.tsbuildinfo
+
+# =========================
+
+# Java
+
+# =========================
+
+.gradle/
+target/
+out/
+
+# =========================
+
+# C#
+
+# =========================
+
+bin/
+obj/
+
+# =========================
+
+# C / C++
+
+# =========================
+
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+
+# =========================
+
+# Rust
+
+# =========================
+
+target/
+Cargo.lock
+
+# Keep Cargo.lock for applications.
+
+#! Cargo.lock
+
+# =========================
+
+# Go
+
+# =========================
+
+bin/
+.coverprofile
+
+# =========================
+
+# Terraform
+
+# =========================
+
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+
+# =========================
+
+# Docker
+
+# =========================
+
+*.pid
+
+# =========================
+
+# Logs
+
+# =========================
+
+logs/
 *.log
+
+# =========================
+
+# Secrets
+
+# =========================
+
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+*.crt
+*.p12
+
+# =========================
+
+# Archives
+
+# =========================
+
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+# =========================
+
+# Temporary Files
+
+# =========================
+
+tmp/
+temp/
+.cache/
+
+# =========================
+
+# Generated Files
+
+# =========================
+
+*.bak
 *.tmp
-*.swp
-*.swo
+*.orig
