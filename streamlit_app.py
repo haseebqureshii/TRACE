@@ -5,7 +5,7 @@ import streamlit as st
 
 # Configuration
 DEFAULT_BACKEND_URL = "http://127.0.0.1:8000"
-MAX_FILE_SIZE_MB = 10
+MAX_FILE_SIZE_MB = 5
 HEALTH_CHECK_TIMEOUT = 3
 MAX_MESSAGE_LENGTH = 1000
 
@@ -37,7 +37,7 @@ def validate_kb_file(uploaded_file) -> tuple[bool, str, dict | None]:
         return False, "File must be a .json file.", None
     
     # Check file size
-    if uploaded_file.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+    if uploaded_file.size > MAX_FILE_SIZE_MB:
         return False, f"File size must be under {MAX_FILE_SIZE_MB}MB.", None
     
     # Read and parse JSON
@@ -149,7 +149,7 @@ else:
 
 # KB File Uploader
 st.sidebar.subheader("Knowledge Base")
-uploaded_kb_file = st.sidebar.file_uploader("Upload KB JSON file", type=["json"])
+uploaded_kb_file = st.sidebar.file_uploader("Upload KB JSON file", type=["json"], max_upload_size=MAX_FILE_SIZE_MB * 1024 * 1024)
 
 # Handle file upload and validation
 if uploaded_kb_file:
