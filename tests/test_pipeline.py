@@ -1,166 +1,150 @@
 import json
 import os
-import time
 import pytest
 import asyncio
-from src.guardrails.dst import DialogueStateManager, LessonState
-from src.pipeline import run_tutor_turn
-from src.guardrails.evaluator import validate_topic_adherence
-from src.guardrails.input_rail import validate_user_input
+from src.state import SessionManager, SessionState
+from src.pipeline import process_chat_turn
+from src.guardrails.contextualizer import contextualize_query
+from src.guardrails.input_rail import get_kb_retriever
 
 
-def load_initial_state() -> LessonState:
-    """Load state parameters from tests/fixtures/initial_state.json."""
+def load_test_conversations() -> dict:
+    """Load test conversations from tests/fixtures/test_conversations.json."""
     fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
-    state_file = os.path.join(fixtures_dir, "initial_state.json")
+    conv_file = os.path.join(fixtures_dir, "test_conversations.json")
     
-    with open(state_file, "r", encoding="utf-8") as f:
-        state_data = json.load(f)
-    
-    return LessonState(**state_data)
+    with open(conv_file, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
-def load_user_input(input_name: str) -> str:
-    """Load test input from tests/fixtures/user_inputs/."""
-    fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures", "user_inputs")
-    input_file = os.path.join(fixtures_dir, f"{input_name}.txt")
-    
-    with open(input_file, "r", encoding="utf-8") as f:
-        return f.read().strip()
-
-
-def load_simulated_response(response_name: str) -> str:
-    """Load simulated response from tests/fixtures/."""
-    fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
-    response_file = os.path.join(fixtures_dir, f"{response_name}.txt")
-    
-    with open(response_file, "r", encoding="utf-8") as f:
-        return f.read().strip()
+@pytest.fixture(autouse=True)
+def cleanup_sessions():
+    """Clean up sessions before and after each test."""
+    SessionManager._sessions = {}
+    yield
+    SessionManager._sessions = {}
 
 
 @pytest.mark.asyncio
-async def test_on_topic_turn():
-    """Verify that an on-topic prompt passes validation."""
-    # Load state parameters
-    state = load_initial_state()
-    state_manager = DialogueStateManager(state)
+async def test_multi_turn_pronoun_contextualization():
+    """Test multi-turn pronoun contextualization (Turn 1: 'What is your refund policy?', Turn 2: 'What about opened items?')."""
+    conversations = load_test_conversations()
+    multi_turn = conversations["multi_turn_contextualization"]
     
-    # Read on-topic test input
-    user_input = load_user_input("on_topic_input")
+    chat_history = [
+        {"role": "user", "content": multi_turn["turn_1_user"]},
+        {"role": "assistant", "content": multi_turn["turn_1_assistant"]}
+    ]
     
-    # Run the tutor turn
-    result = await run_tutor_turn(user_input, state_manager)
+    contextualized = await contextualize_query(multi_turn["turn_2_user"], chat_history)
     
-    # Verify the response structure
+    # Verify the contextualized query resolves pronouns and is relevant to opened items return policy
+    assert contextualized is not None
+    assert len(contextualized) > 0
+    # The contextualized query should mention opened items and return/refund policy
+    assert any(keyword in contextualized.lower() for keyword in ["opened", "return", "policy", "refund"])
+
+
+@pytest.mark.asyncio
+async def test_successful_in_domain_rag_response():
+    """Test successful in-domain RAG response execution."""
+    session_id = "test_session_rag_001"
+    conversations = load_test_conversations()
+    in_domain_query = conversations["in_domain_queries"][0]  # "What is your return policy?"
+    
+    result = await process_chat_turn(session_id, in_domain_query)
+    
+    # Verify response structure
     assert "response" in result
-    assert "is_on_topic" in result
+    assert "is_escalated" in result
+    assert "strikes" in result
     assert "rationale" in result
     
-    # Verify that on-topic prompt passes validation
-    assert result["is_on_topic"] is True, f"Expected is_on_topic to be True, but got: {result['is_on_topic']}. Rationale: {result['rationale']}"
+    # Verify it's not escalated and has 0 strikes
+    assert result["is_escalated"] is False
+    assert result["strikes"] == 0
+    assert "In-domain response generated" in result["rationale"]
+    
+    # Verify response is not the off-topic escalation message
+    assert "I am only able to assist with customer service" not in result["response"]
+    assert "human customer support specialist" not in result["response"]
 
 
 @pytest.mark.asyncio
-async def test_off_topic_user_input():
-    """Verify that off-topic user input is caught by the Input Rail and short-circuits execution."""
-    # Load state parameters
-    state = load_initial_state()
-    state_manager = DialogueStateManager(state)
+async def test_off_topic_query_detection_and_strike_incrementation():
+    """Test off-topic query detection and invisible strike counter incrementation."""
+    session_id = "test_session_strikes_001"
+    conversations = load_test_conversations()
+    off_topic_query = conversations["off_topic_queries"][0]  # "What is the capital of France?"
     
-    # Read off-topic test input
-    user_input = load_user_input("off_topic_input")
+    # First off-topic query
+    result1 = await process_chat_turn(session_id, off_topic_query)
     
-    # Run the tutor turn
-    result = await run_tutor_turn(user_input, state_manager)
+    assert result1["is_escalated"] is False
+    assert result1["strikes"] == 1
+    assert "Off-topic query detected" in result1["rationale"]
+    assert "I am only able to assist with customer service and support inquiries" in result1["response"]
     
-    # Verify the response structure
-    assert "response" in result
-    assert "is_on_topic" in result
-    assert "rationale" in result
+    # Second off-topic query
+    result2 = await process_chat_turn(session_id, off_topic_query)
     
-    # Verify that off-topic user input is blocked by Input Rail
-    assert result["is_on_topic"] is False, f"Expected is_on_topic to be False, but got: {result['is_on_topic']}. Rationale: {result['rationale']}"
-    assert result["response"] == "Let's stay focused on our lesson goal.", f"Expected short-circuit response, but got: {result['response']}"
-    assert "Off-topic user input blocked by Input Rail" in result["rationale"]
+    assert result2["is_escalated"] is False
+    assert result2["strikes"] == 2
+    assert "Off-topic query detected" in result2["rationale"]
+    
+    # Third off-topic query should trigger escalation
+    result3 = await process_chat_turn(session_id, off_topic_query)
+    
+    assert result3["is_escalated"] is True
+    assert result3["strikes"] == 3
+    assert "Max drift strikes reached" in result3["rationale"]
+    assert "human customer support specialist" in result3["response"]
 
 
 @pytest.mark.asyncio
-async def test_output_rail_drift_detection():
-    """Verify that the Output Rail flags a simulated off-topic LLM response as is_on_topic = False."""
-    # Load state parameters
-    state = load_initial_state()
+async def test_human_escalation_trigger_when_strikes_hit_max():
+    """Test human escalation trigger when strikes hit max_strikes."""
+    session_id = "test_session_escalation_002"
+    conversations = load_test_conversations()
+    off_topic_query = conversations["off_topic_queries"][1]  # "Tell me a joke"
     
-    # Load simulated off-topic LLM response
-    simulated_response = load_simulated_response("simulated_off_topic_response")
+    # Simulate a session that has already accumulated 2 strikes
+    state = SessionManager.get_or_create_session(session_id)
+    state.drift_strikes = 2
+    state.max_strikes = 3
+    state.is_escalated = False
+    SessionManager.update_session(state)
     
-    # Pass the simulated response directly to validate_topic_adherence (Output Rail)
-    evaluation_result = await validate_topic_adherence(simulated_response, state.current_sub_goal)
+    # Next off-topic query should trigger escalation
+    result = await process_chat_turn(session_id, off_topic_query)
     
-    # Verify the evaluation result structure
-    assert "is_on_topic" in evaluation_result
-    assert "rationale" in evaluation_result
+    assert result["is_escalated"] is True
+    assert result["strikes"] == 3
+    assert "Max drift strikes reached" in result["rationale"]
+    assert "I am connecting you with a human customer support specialist" in result["response"]
     
-    # Verify that the Output Rail flags the simulated off-topic response
-    assert evaluation_result["is_on_topic"] is False, f"Expected is_on_topic to be False, but got: {evaluation_result['is_on_topic']}. Rationale: {evaluation_result['rationale']}"
-
-
-def test_input_rail_local_execution():
-    """Verify that validate_user_input executes locally without invoking the remote LLM client."""
-    # Load state parameters
-    state = load_initial_state()
+    # Subsequent queries should return the escalation handoff response
+    result2 = await process_chat_turn(session_id, "What is your return policy?")
     
-    # Read test inputs
-    on_topic_input = load_user_input("on_topic_input")
-    off_topic_input = load_user_input("off_topic_input")
-    
-    # Test on-topic input
-    start_time = time.perf_counter()
-    on_topic_result = validate_user_input(on_topic_input, state.current_sub_goal)
-    on_topic_time = time.perf_counter() - start_time
-    
-    # Verify on-topic result structure
-    assert "is_relevant" in on_topic_result
-    assert "score" in on_topic_result
-    assert "rationale" in on_topic_result
-    assert on_topic_result["is_relevant"] is True
-    
-    # Test off-topic input
-    start_time = time.perf_counter()
-    off_topic_result = validate_user_input(off_topic_input, state.current_sub_goal)
-    off_topic_time = time.perf_counter() - start_time
-    
-    # Verify off-topic result structure
-    assert "is_relevant" in off_topic_result
-    assert "score" in off_topic_result
-    assert "rationale" in off_topic_result
-    assert off_topic_result["is_relevant"] is False
-    
-    # Verify that local execution is fast (should be under 2 seconds for embedding computation)
-    # First call may be slower due to model loading, but subsequent calls should be fast
-    assert off_topic_time < 2.0, f"Local embedding execution took {off_topic_time:.3f}s, expected < 2.0s"
+    assert result2["is_escalated"] is True
+    assert result2["response"] == "A human agent has been notified and will take over shortly."
 
 
 @pytest.mark.asyncio
-async def test_cross_lingual_input_rail():
-    """Verify that foreign language input matches the English current_sub_goal with is_relevant = True."""
-    # Load state parameters
-    state = load_initial_state()
+async def test_kb_retriever_relevance_evaluation():
+    """Test KBRetriever relevance evaluation with in-domain and off-domain queries."""
+    retriever = get_kb_retriever()
     
-    # Read cross-lingual test input
-    cross_lingual_input = load_user_input("cross_lingual_on_topic_input")
+    # In-domain query
+    in_domain_query = "What is your return policy for opened items?"
+    in_domain_result = retriever.evaluate_relevance_and_retrieve(in_domain_query, threshold=0.30, top_k=2)
     
-    # Test cross-lingual input with input rail
-    start_time = time.perf_counter()
-    cross_lingual_result = validate_user_input(cross_lingual_input, state.current_sub_goal)
-    cross_lingual_time = time.perf_counter() - start_time
+    assert in_domain_result["is_relevant"] is True
+    assert in_domain_result["score"] >= 0.30
+    assert len(in_domain_result["contexts"]) > 0
     
-    # Verify cross-lingual result structure
-    assert "is_relevant" in cross_lingual_result
-    assert "score" in cross_lingual_result
-    assert "rationale" in cross_lingual_result
+    # Off-domain query
+    off_domain_query = "What is the capital of Japan?"
+    off_domain_result = retriever.evaluate_relevance_and_retrieve(off_domain_query, threshold=0.30, top_k=2)
     
-    # Verify that cross-lingual input is recognized as relevant
-    assert cross_lingual_result["is_relevant"] is True, f"Expected is_relevant to be True for cross-lingual input, but got: {cross_lingual_result['is_relevant']}. Rationale: {cross_lingual_result['rationale']}. Score: {cross_lingual_result['score']}"
-    
-    # Verify that local execution is fast
-    assert cross_lingual_time < 2.0, f"Cross-lingual embedding execution took {cross_lingual_time:.3f}s, expected < 2.0s"
+    assert off_domain_result["is_relevant"] is False or off_domain_result["score"] < 0.30

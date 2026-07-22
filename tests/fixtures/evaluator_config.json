@@ -1,19 +1,5 @@
 {
-  "topic_adherence": {
-    "evaluation_model": "qwen3-235b-a22b-instruct-2507",
-    "prompt_template": "Evaluate whether the following response adheres to the current sub-goal. \n\nCurrent sub-goal: {current_sub_goal}\n\nResponse: {response_text}\n\nDoes the response adhere to the sub-goal? Return 'true' if it does, 'false' if it does not. Also provide a brief rationale for your decision.",
-    "expected_output_format": {
-      "is_on_topic": "boolean",
-      "rationale": "string"
-    }
-  },
-  "input_relevance": {
-    "similarity_threshold": 0.30,
-    "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-    "expected_output_format": {
-      "is_relevant": "boolean",
-      "score": "float",
-      "rationale": "string"
-    }
-  }
+  "similarity_threshold": 0.30,
+  "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "max_drift_strikes": 3
 }

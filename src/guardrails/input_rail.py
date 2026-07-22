@@ -1,11 +1,14 @@
 import os
-from typing import Dict, Any
+import json
+from typing import List, Dict, Any
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
 
 
 # Initialize the SentenceTransformer model on module load
 _model = None
+_kb_documents = None
+_kb_embeddings = None
 
 
 def get_model():
@@ -27,37 +30,108 @@ def generate_embedding(text: str):
     return model.encode(text, convert_to_tensor=True)
 
 
-def validate_user_input(user_input: str, current_sub_goal: str, threshold: float = 0.30) -> Dict[str, Any]:
-    """
-    Evaluate whether user_input is a reasonable attempt to engage with the lesson state
-    or an explicit off-topic distraction using local embedding-based classification.
+def load_kb_documents() -> List[Dict[str, Any]]:
+    """Load KB documents from tests/fixtures/kb_documents.json."""
+    global _kb_documents
+    if _kb_documents is not None:
+        return _kb_documents
     
-    Args:
-        user_input: The user's input to evaluate
-        current_sub_goal: The current sub-goal of the lesson
-        threshold: Cosine similarity threshold for relevance (default: 0.30 for cross-lingual)
+    # Try to find the kb_documents.json file
+    kb_paths = [
+        os.path.join(os.path.dirname(__file__), '..', '..', 'tests', 'fixtures', 'kb_documents.json'),
+        os.path.join(os.path.dirname(__file__), '..', 'tests', 'fixtures', 'kb_documents.json'),
+        os.path.join('tests', 'fixtures', 'kb_documents.json'),
+        os.path.join(os.getcwd(), 'tests', 'fixtures', 'kb_documents.json')
+    ]
+    
+    kb_data = None
+    for path in kb_paths:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                kb_data = json.load(f)
+                break
+    
+    if kb_data is None or 'documents' not in kb_data:
+        raise FileNotFoundError("Could not find kb_documents.json with 'documents' key")
+    
+    _kb_documents = kb_data['documents']
+    return _kb_documents
+
+
+def compute_kb_embeddings():
+    """Compute vector embeddings for all KB documents on load."""
+    global _kb_embeddings, _kb_documents
+    if _kb_embeddings is not None:
+        return _kb_embeddings
+    
+    documents = load_kb_documents()
+    embeddings = []
+    for doc in documents:
+        embedding = generate_embedding(doc['content'])
+        embeddings.append(embedding)
+    
+    _kb_embeddings = embeddings
+    return _kb_embeddings
+
+
+class KBRetriever:
+    def __init__(self):
+        self.documents = load_kb_documents()
+        self.embeddings = compute_kb_embeddings()
+
+    def evaluate_relevance_and_retrieve(self, contextualized_query: str, threshold: float = 0.30, top_k: int = 2) -> Dict[str, Any]:
+        """
+        a. Embed contextualized_query.
+        b. Compute cosine similarities against KB document embeddings.
+        c. If max similarity < threshold: return {"is_relevant": False, "score": float, "contexts": []}.
+        d. If max similarity >= threshold: return {"is_relevant": True, "score": float, "contexts": [top_k_matching_text_snippets]}.
+        """
+        query_embedding = generate_embedding(contextualized_query)
         
-    Returns:
-        Dict with 'is_relevant' (bool), 'score' (float), and 'rationale' (str)
-    """
-    # Generate embeddings
-    user_input_embedding = generate_embedding(user_input)
-    sub_goal_embedding = generate_embedding(current_sub_goal)
-    
-    # Compute cosine similarity
-    similarity_score = cosine_similarity(user_input_embedding, sub_goal_embedding)
-    
-    # Determine relevance based on threshold
-    is_relevant = similarity_score >= threshold
-    
-    # Generate rationale
-    if is_relevant:
-        rationale = f"User input is relevant to the lesson sub-goal (similarity score: {similarity_score:.3f} >= {threshold})."
-    else:
-        rationale = f"User input is off-topic or a distraction from the lesson sub-goal (similarity score: {similarity_score:.3f} < {threshold})."
-    
-    return {
-        "is_relevant": is_relevant,
-        "score": float(similarity_score),
-        "rationale": rationale
-    }
+        similarities = []
+        for i, emb in enumerate(self.embeddings):
+            sim = cosine_similarity(query_embedding, emb)
+            similarities.append((i, sim, self.documents[i]['content']))
+        
+        # Sort by similarity descending
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        
+        if not similarities:
+            return {
+                "is_relevant": False,
+                "score": 0.0,
+                "contexts": []
+            }
+        
+        max_score = similarities[0][1]
+        
+        if max_score < threshold:
+            return {
+                "is_relevant": False,
+                "score": float(max_score),
+                "contexts": []
+            }
+        
+        # Get top_k matching contexts
+        contexts = []
+        for i in range(min(top_k, len(similarities))):
+            _, _, content = similarities[i]
+            contexts.append(content)
+        
+        return {
+            "is_relevant": True,
+            "score": float(max_score),
+            "contexts": contexts
+        }
+
+
+# Global retriever instance
+_kb_retriever = None
+
+
+def get_kb_retriever() -> KBRetriever:
+    """Get or create the global KBRetriever instance."""
+    global _kb_retriever
+    if _kb_retriever is None:
+        _kb_retriever = KBRetriever()
+    return _kb_retriever

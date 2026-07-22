@@ -1,0 +1,22 @@
+{
+  "multi_turn_contextualization": {
+    "turn_1_user": "What is your refund policy?",
+    "turn_1_assistant": "Our refund policy allows unopened items to be returned within 30 days of purchase for a full refund with the original receipt.",
+    "turn_2_user": "What about opened items?",
+    "expected_contextualized_query": "What is the return policy for opened items?"
+  },
+  "in_domain_queries": [
+    "What is your return policy?",
+    "How long does shipping take?",
+    "What are your store hours?",
+    "Do you offer free shipping?",
+    "What payment methods do you accept?"
+  ],
+  "off_topic_queries": [
+    "What is the capital of France?",
+    "Tell me a joke",
+    "How do I fix my car?",
+    "What is the weather like today?",
+    "Can you write me a poem?"
+  ]
+}

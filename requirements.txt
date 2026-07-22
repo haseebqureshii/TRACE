@@ -1,9 +1,10 @@
 python-dotenv
 openai
 pydantic
-nemoguardrails
-outlines
-guardrails-ai
 sentence-transformers
 torch
+pytest
 pytest-asyncio
+fastapi
+uvicorn
+httpx
