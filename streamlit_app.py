@@ -5,8 +5,9 @@ import streamlit as st
 
 # Configuration
 DEFAULT_BACKEND_URL = "http://127.0.0.1:8000"
-MAX_FILE_SIZE_MB = 5
+MAX_FILE_SIZE_MB = 10
 HEALTH_CHECK_TIMEOUT = 3
+MAX_MESSAGE_LENGTH = 1000
 
 
 def get_backend_url():
@@ -77,9 +78,9 @@ def initialize_session(backend_url: str, kb_data: dict) -> tuple[bool, str, dict
             result = response.json()
             return True, "Session initialized successfully.", result
         else:
-            return False, f"Failed to initialize session: {response.status_code} - {response.text}", None
-    except Exception as e:
-        return False, f"Network error during session initialization: {str(e)}", None
+            return False, "Failed to initialize session.", None
+    except Exception:
+        return False, "Network error during session initialization.", None
 
 
 def send_chat_message(backend_url: str, session_id: str, message: str) -> tuple[bool, dict | None]:
@@ -173,14 +174,14 @@ if uploaded_kb_file:
                         st.session_state.init_error = None
                         st.sidebar.success("Session initialized successfully!")
                     else:
-                        st.session_state.init_error = f"Initialization failed: {msg}"
-                        st.sidebar.error(f"Initialization failed: {msg}")
+                        st.session_state.init_error = "Failed to initialize session. Please try again."
+                        st.sidebar.error("Failed to initialize session. Please try again.")
                         st.session_state.kb_file_validated = False
                         st.session_state.kb_file_uploaded = False
                         st.session_state.kb_data = None
-                except Exception as e:
-                    st.session_state.init_error = f"Network error during session initialization: {str(e)}"
-                    st.sidebar.error(f"Network error during session initialization: {str(e)}")
+                except Exception:
+                    st.session_state.init_error = "Failed to initialize session. Please try again."
+                    st.sidebar.error("Failed to initialize session. Please try again.")
                     st.session_state.kb_file_validated = False
                     st.session_state.kb_file_uploaded = False
                     st.session_state.kb_data = None
@@ -199,7 +200,7 @@ else:
 
 # Display initialization error if any
 if st.session_state.init_error:
-    st.error(f"⚠️ {st.session_state.init_error}")
+    st.error(st.session_state.init_error)
 
 # Active Session Info
 st.sidebar.subheader("Active Session")
@@ -236,9 +237,14 @@ for message in st.session_state.chat_history:
 
 # Chat input and submission
 if st.session_state.backend_online and not st.session_state.escalated and st.session_state.session_id:
-    user_input = st.chat_input("Type your message...")
+    user_input = st.chat_input("Type your message... (max 1000 characters)")
     
     if user_input:
+        # Enforce character limit
+        if len(user_input) > MAX_MESSAGE_LENGTH:
+            st.error(f"Message must be {MAX_MESSAGE_LENGTH} characters or less. Please shorten your message.")
+            st.rerun()
+        
         # Add user message to chat history
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         

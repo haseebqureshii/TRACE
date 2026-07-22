@@ -1,127 +1,90 @@
 # Drift-Free Customer Service Agent Platform
 
-This project is a Drift-Free Customer Service Agent platform that provides guardrails for AI customer support agents, including query contextualization, knowledge base retrieval, output grounding validation, and drift-strike escalation.
+## Overview
 
-## Setup Instructions
+The Drift-Free Customer Service Agent Platform is an AI-powered customer support system designed to provide accurate, context-aware responses while maintaining strict boundaries around supported topics. The platform uses a knowledge base-driven approach to ensure all responses are grounded in verified business information, preventing hallucinations or ungrounded policy statements.
 
-### 1. Virtual Environment Setup
+## Key Features
 
-A Python virtual environment is required for this project. It has been created in the `.venv` directory.
+- **Context-Aware Conversations**: The platform maintains conversation history and resolves pronouns across multiple turns to provide coherent, contextually relevant responses.
+- **Knowledge Base Retrieval**: Uses vector embeddings to retrieve relevant business documentation (return policies, shipping times, store hours, payment methods, etc.) for accurate response generation.
+- **Drift Detection & Escalation**: Monitors user queries for off-topic or unsupported requests. After a configurable number of off-topic queries, the system automatically escalates to a human support specialist.
+- **Output Grounding Validation**: Ensures AI-generated responses strictly adhere to the provided knowledge base context without inventing ungrounded policies.
 
-**To activate the virtual environment:**
+## How to Use
 
-- **Windows (PowerShell or Command Prompt):**
-  ```powershell
-  .venv\Scripts\activate
-  ```
+### Getting Started
 
-- **macOS/Linux:**
-  ```bash
-  source .venv/bin/activate
-  ```
+1. **Upload a Knowledge Base File**: In the sidebar, upload a valid `.json` Knowledge Base file containing your business information, policies, and frequently asked questions.
 
-### 2. Install Dependencies
+2. **Automatic Session Initialization**: Once a valid Knowledge Base file is uploaded, the system automatically initializes a support session tailored to your business.
 
-With the virtual environment activated, install the required dependencies:
+3. **Start Chatting**: Type your customer support inquiries in the chat input area. The AI assistant will provide responses based on your knowledge base.
 
-```bash
-pip install -r requirements.txt
+4. **Multi-Turn Conversations**: The system maintains conversation context, allowing you to ask follow-up questions with pronouns or references to previous messages.
+
+### Knowledge Base JSON File Structure
+
+The Knowledge Base JSON file is the foundation of your customer support agent. It must follow this rigid structure:
+
+```json
+{
+  "business_name": "Your Business Name",
+  "domain_description": "Brief description of your business domain and what support topics are covered",
+  "documents": [
+    {
+      "id": "doc_001",
+      "category": "Returns & Refunds",
+      "title": "Return Policy for Opened Items",
+      "content": "Items that have been opened may be returned within 30 days of purchase... [full policy text]"
+    },
+    {
+      "id": "doc_002",
+      "category": "Shipping",
+      "title": "Shipping Times and Methods",
+      "content": "Standard shipping takes 3-5 business days... [full shipping information]"
+    },
+    {
+      "id": "doc_003",
+      "category": "Store Hours",
+      "title": "Customer Service Hours",
+      "content": "Our customer service team is available Monday-Friday, 9 AM to 6 PM EST... [full hours information]"
+    }
+  ]
+}
 ```
 
-### 3. Environment Configuration
+### Required Fields
 
-Copy the `.env` file and update it with your actual API key and LLM endpoint:
+- **`business_name`** (string): The name of your business or organization.
+- **`domain_description`** (string): A brief description of what topics and support areas the AI agent is authorized to handle.
+- **`documents`** (array of objects): A list of knowledge base documents. Each document must include:
+  - **`id`** (string): A unique identifier for the document.
+  - **`category`** (string): The topic category (e.g., "Returns & Refunds", "Shipping", "Store Hours").
+  - **`title`** (string): A descriptive title for the document.
+  - **`content`** (string): The full text content of the policy or information.
 
-```env
-TRACE_LLM_API_KEY_TEST=your_key_here
-TRACE_LLM_BASE_URL=http://your-university-llm-endpoint/v1
-TEST_MODEL_ID=qwen3-235b-a22b-instruct-2507
-```
+### File Requirements
 
-### 4. Verify Connection
+- **Format**: Must be a valid `.json` file.
+- **Size**: Maximum file size is 10 MB.
+- **Structure**: Must include the top-level keys `business_name`, `domain_description`, and `documents`. Each document in the `documents` array must include `id`, `category`, `title`, and `content` fields.
 
-To verify that the LLM connection is working correctly, run the connection test:
+## System Behavior
 
-```bash
-python -m tests.test_connection
-```
+### In-Domain Queries
+When a user asks a question that matches the knowledge base content, the system retrieves relevant documents and generates an accurate, grounded response.
 
-## Running the Application
+### Off-Topic Queries
+If a user asks a question outside the scope of the knowledge base, the system will:
+1. Respond with: "I am only able to assist with customer service and support inquiries. Could you please clarify your request?"
+2. Increment a hidden "drift strike" counter.
 
-### a. Running Locally
+### Human Escalation
+After reaching the maximum number of drift strikes (configurable, default is 3), the system will:
+1. Display: "Chat diverted/escalated to a human."
+2. Disable further chat input, indicating the AI session has ended and a human support specialist should take over.
 
-**Start the Backend (FastAPI):**
+## Support
 
-```bash
-uvicorn src.api:app --reload
-```
-
-The backend will be available at `http://127.0.0.1:8000`. You can access the API documentation at `http://127.0.0.1:8000/docs`.
-
-**Start the Frontend (Streamlit):**
-
-In a new terminal (with the virtual environment activated), run:
-
-```bash
-streamlit run streamlit_app.py
-```
-
-The Streamlit app will be available at `http://localhost:8501`.
-
-### b. Hybrid Public Deployment (Streamlit Cloud + Local Ngrok Tunnel)
-
-For public access while keeping the backend on a local or university network:
-
-1. **Start the local FastAPI server** while connected to the university VPN:
-   ```bash
-   uvicorn src.api:app --host 0.0.0.0 --port 8000
-   ```
-
-2. **Expose port 8000 via ngrok:**
-   ```bash
-   ngrok http 8000
-   ```
-   This will generate a public URL like `https://xxxxx.ngrok-free.app`.
-
-3. **Deploy `streamlit_app.py` to Streamlit Community Cloud:**
-   - Push your code to a GitHub repository.
-   - Go to [Streamlit Community Cloud](https://share.streamlit.io/) and connect your repository.
-   - Set the main file to `streamlit_app.py`.
-
-4. **Configure the ngrok URL in the Streamlit app:**
-   - Open the deployed Streamlit app.
-   - In the sidebar, expand "⚙️ Advanced Settings".
-   - Enter the ngrok public URL (e.g., `https://xxxxx.ngrok-free.app`) in the Backend URL field.
-   - The app will automatically verify the connection and display the system status badge.
-
-## Project Structure
-
-```
-├── config/
-│   └── rails/           # For NeMo / Colang rules (if applicable)
-├── src/
-│   ├── __init__.py
-│   ├── api.py           # FastAPI backend with chat and session endpoints
-│   ├── llm_client.py    # OpenAI-compatible client setup
-│   ├── pipeline.py      # Chat turn processing pipeline
-│   ├── state.py         # SessionState and SessionManager
-│   └── guardrails/      # Custom guardrail modules (contextualizer, input_rail, evaluator)
-├── tests/
-│   ├── __init__.py
-│   ├── test_api.py      # FastAPI endpoint tests
-│   ├── test_pipeline.py # Pipeline logic tests
-│   └── fixtures/        # Test fixtures (kb_documents.json, test_conversations.json, evaluator_config.json)
-├── .env
-├── .gitignore
-├── requirements.txt
-├── streamlit_app.py     # Streamlit frontend application
-└── README.md
-```
-
-## API Endpoints
-
-- `GET /health` - Health check endpoint
-- `POST /api/v1/session/init` - Initialize a new session with KB data
-- `POST /api/v1/chat` - Process a chat turn
-- `GET /api/v1/session/{session_id}` - Get session state
-- `POST /api/v1/session/reset` - Reset a session
+For technical support or questions about the platform, please contact your system administrator or refer to the internal documentation.

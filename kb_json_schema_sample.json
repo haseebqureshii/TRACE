@@ -1,36 +1,156 @@
 {
-  "business_name": "Apex Audio",
-  "domain_description": "Manufacturer and online retailer of premium wireless headphones, audio hardware, and accessories.",
+  "business_name": "Summit Realty Group",
+  "domain_description": "Residential real estate agency helping buyers, sellers, renters, and property investors with property searches, transactions, scheduling, financing guidance, and post-sale support.",
   "documents": [
     {
       "id": "doc_001",
-      "title": "Return Policy & Packaging Requirements",
-      "category": "Returns & Refunds",
-      "content": "Customers can return unopened or opened products within 30 days of delivery for a full refund. Items must include original packaging and all accessories. Opened items missing original accessories are subject to a 15% restocking fee."
+      "title": "Office Hours & Contact Information",
+      "category": "General",
+      "content": "Our offices are open Monday through Friday from 8:30 AM to 6:00 PM and Saturday from 9:00 AM to 3:00 PM. We are closed on Sundays and major public holidays. Emergency contract support is available by phone outside business hours."
     },
     {
       "id": "doc_002",
-      "title": "Delivery Options & Timelines",
-      "category": "Shipping",
-      "content": "Standard shipping (3–5 business days) is free on orders over $50. Express shipping (1–2 business days) costs $14.99. International shipping is currently unavailable."
+      "title": "Scheduling Property Tours",
+      "category": "Appointments",
+      "content": "Property tours can be scheduled online or through an agent. Same-day appointments depend on seller approval. Buyers are encouraged to provide at least 24 hours notice when requesting private showings."
     },
     {
       "id": "doc_003",
-      "title": "Limited Hardware Coverage",
-      "category": "Warranty",
-      "content": "All headphones come with a 1-year limited hardware warranty covering internal component failures and manufacturing defects. Water damage beyond the IPX4 rating and physical drops are not covered."
+      "title": "Buying Process Overview",
+      "category": "Buying",
+      "content": "The home buying process includes consultation, mortgage pre-approval, property search, home tours, submitting an offer, negotiation, inspections, appraisal, final loan approval, and closing."
     },
     {
       "id": "doc_004",
-      "title": "Factory Reset Instructions",
-      "category": "Troubleshooting",
-      "content": "To factory reset Apex wireless headphones, hold the Power and Volume Down buttons simultaneously for 8 seconds until the status LED flashes red twice. This clears all paired Bluetooth devices."
+      "title": "Mortgage Pre-Approval",
+      "category": "Financing",
+      "content": "Although not required to begin searching, mortgage pre-approval is recommended before submitting offers. It helps determine purchasing power and strengthens offers presented to sellers."
     },
     {
       "id": "doc_005",
-      "title": "Order Cancellation Window",
-      "category": "Orders",
-      "content": "Orders can be canceled or modified within 45 minutes of placement through the order status page. Once an order status changes to 'Processing', it cannot be canceled and must be returned after delivery."
+      "title": "Offer Submission Timeline",
+      "category": "Offers",
+      "content": "Offers are typically submitted electronically and presented to the seller within two business hours. Sellers may accept, reject, or counter an offer."
+    },
+    {
+      "id": "doc_006",
+      "title": "Earnest Money Deposit",
+      "category": "Contracts",
+      "content": "An earnest money deposit demonstrates the buyer's commitment. Funds are typically held in escrow until closing and may be refundable depending on contract contingencies."
+    },
+    {
+      "id": "doc_007",
+      "title": "Home Inspection Policy",
+      "category": "Inspections",
+      "content": "Buyers are encouraged to schedule a professional home inspection within the inspection contingency period. Inspection reports may be used to negotiate repairs or credits."
+    },
+    {
+      "id": "doc_008",
+      "title": "Appraisal Process",
+      "category": "Financing",
+      "content": "Lenders typically require an appraisal before approving the mortgage. If the appraisal is lower than the purchase price, buyers and sellers may renegotiate the contract."
+    },
+    {
+      "id": "doc_009",
+      "title": "Closing Timeline",
+      "category": "Closing",
+      "content": "Most residential transactions close within 30 to 45 days after an offer is accepted, although timelines may vary depending on financing and inspections."
+    },
+    {
+      "id": "doc_010",
+      "title": "Seller Listing Process",
+      "category": "Selling",
+      "content": "Homeowners begin by scheduling a listing consultation where pricing strategy, market analysis, staging recommendations, photography, and marketing plans are discussed."
+    },
+    {
+      "id": "doc_011",
+      "title": "Property Valuation",
+      "category": "Selling",
+      "content": "Property values are estimated using comparable recent sales, neighborhood trends, property condition, upgrades, lot size, and current market demand."
+    },
+    {
+      "id": "doc_012",
+      "title": "Professional Photography",
+      "category": "Marketing",
+      "content": "Every listed property receives professional photography and virtual tour preparation before being published on listing platforms."
+    },
+    {
+      "id": "doc_013",
+      "title": "Open House Scheduling",
+      "category": "Marketing",
+      "content": "Open houses are typically scheduled during weekends. Sellers receive advance notice and can approve or decline proposed dates."
+    },
+    {
+      "id": "doc_014",
+      "title": "Rental Property Assistance",
+      "category": "Rentals",
+      "content": "Rental clients can search available properties, schedule tours, review lease requirements, and submit rental applications through participating property managers."
+    },
+    {
+      "id": "doc_015",
+      "title": "Lease Application Requirements",
+      "category": "Rentals",
+      "content": "Applicants generally provide identification, employment verification, proof of income, rental history, and authorization for a credit and background check."
+    },
+    {
+      "id": "doc_016",
+      "title": "Investment Property Services",
+      "category": "Investing",
+      "content": "Investment clients receive assistance evaluating rental income potential, neighborhood trends, estimated operating costs, and projected return on investment."
+    },
+    {
+      "id": "doc_017",
+      "title": "Neighborhood Information",
+      "category": "Local Areas",
+      "content": "Agents provide information regarding nearby schools, parks, shopping centers, public transportation, commute times, and local amenities."
+    },
+    {
+      "id": "doc_018",
+      "title": "Property Search Filters",
+      "category": "Search",
+      "content": "Clients can search by city, ZIP code, school district, price range, bedrooms, bathrooms, square footage, lot size, home type, and desired amenities."
+    },
+    {
+      "id": "doc_019",
+      "title": "Property Status Definitions",
+      "category": "Listings",
+      "content": "Listings may be marked as Active, Pending, Under Contract, Coming Soon, Temporarily Off Market, or Sold. Status updates occur throughout the transaction process."
+    },
+    {
+      "id": "doc_020",
+      "title": "Escrow Process",
+      "category": "Closing",
+      "content": "Escrow is managed by an independent escrow company responsible for holding deposits, collecting required documents, and coordinating final closing procedures."
+    },
+    {
+      "id": "doc_021",
+      "title": "Common Closing Costs",
+      "category": "Closing",
+      "content": "Closing costs may include lender fees, title insurance, recording fees, escrow fees, appraisal fees, inspection costs, prepaid taxes, and homeowners insurance."
+    },
+    {
+      "id": "doc_022",
+      "title": "Homeowner Association Information",
+      "category": "HOA",
+      "content": "Some properties belong to homeowner associations that charge monthly or annual dues and enforce community rules regarding maintenance and property appearance."
+    },
+    {
+      "id": "doc_023",
+      "title": "First-Time Buyer Assistance",
+      "category": "Buying",
+      "content": "First-time buyers receive guidance on financing options, budgeting, closing costs, inspections, and understanding purchase agreements."
+    },
+    {
+      "id": "doc_024",
+      "title": "Offer Negotiation",
+      "category": "Offers",
+      "content": "Agents negotiate purchase price, contingencies, repair requests, closing dates, seller concessions, and included appliances on behalf of their clients."
+    },
+    {
+      "id": "doc_025",
+      "title": "Frequently Asked Questions",
+      "category": "FAQ",
+      "content": "Common questions include how long buying takes, how much down payment is required, whether pre-approval is necessary, when inspections occur, and what happens at closing."
     }
   ]
 }
