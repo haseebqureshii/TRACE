@@ -5,7 +5,7 @@ import streamlit as st
 
 # Configuration
 DEFAULT_BACKEND_URL = "http://127.0.0.1:8000"
-MAX_FILE_SIZE_MB = 10
+MAX_FILE_SIZE_MB = 5
 HEALTH_CHECK_TIMEOUT = 3
 MAX_MESSAGE_LENGTH = 1000
 
@@ -149,7 +149,7 @@ else:
 
 # KB File Uploader
 st.sidebar.subheader("Knowledge Base")
-uploaded_kb_file = st.sidebar.file_uploader("Upload KB JSON file", type=["json"])
+uploaded_kb_file = st.sidebar.file_uploader("Upload KB JSON file", type=["json"], max_upload_size=MAX_FILE_SIZE_MB * 1024 * 1024)
 
 # Handle file upload and validation
 if uploaded_kb_file:

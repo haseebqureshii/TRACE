@@ -226,3 +226,11 @@ temp/
 *.bak
 *.tmp
 *.orig
+
+# =========================
+
+# Coding agent file
+
+# =========================
+
+coding-standards.md
