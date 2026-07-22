@@ -1,9 +1,26 @@
-from typing import List, Dict
+from typing import List, Dict, Any
 from pydantic import BaseModel
+
+
+class KBDocument(BaseModel):
+    id: str
+    category: str
+    title: str
+    content: str
+
+
+class KBSchema(BaseModel):
+    business_name: str
+    domain_description: str
+    documents: List[KBDocument]
 
 
 class SessionState(BaseModel):
     session_id: str
+    business_name: str = "Default Business"
+    domain_description: str = "Default domain description"
+    kb_documents: List[KBDocument] = []
+    kb_embeddings: Any = None
     chat_history: List[Dict[str, str]] = []
     drift_strikes: int = 0
     max_strikes: int = 3

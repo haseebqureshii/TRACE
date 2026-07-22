@@ -2,8 +2,17 @@ import json
 import os
 import pytest
 from fastapi.testclient import TestClient
-from src.api import app, ChatRequest, ResetRequest
-from src.state import SessionManager
+from src.api import app
+from src.state import SessionManager, KBDocument
+
+
+def load_kb_documents() -> dict:
+    """Load KB documents from tests/fixtures/kb_documents.json."""
+    fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+    kb_file = os.path.join(fixtures_dir, "kb_documents.json")
+    
+    with open(kb_file, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def load_test_conversations() -> dict:
@@ -29,13 +38,68 @@ def client():
     return TestClient(app)
 
 
+def create_test_session(client):
+    """Helper to create a test session with KB data."""
+    kb_data = load_kb_documents()
+    # Format documents to match KBDocument schema (id, category, title, content)
+    formatted_docs = []
+    for doc in kb_data["documents"]:
+        formatted_docs.append({
+            "id": doc["id"],
+            "category": doc["category"],
+            "title": doc.get("title", doc["category"]),
+            "content": doc["content"]
+        })
+    init_request = {
+        "kb_data": {
+            "business_name": "Test Store",
+            "domain_description": "Customer service for a retail store",
+            "documents": formatted_docs
+        }
+    }
+    response = client.post("/api/v1/session/init", json=init_request)
+    assert response.status_code == 200
+    result = response.json()
+    return result["session_id"]
+
+
+def test_session_init_endpoint(client):
+    """Test POST /api/v1/session/init with KB data."""
+    kb_data = load_kb_documents()
+    # Format documents to match KBDocument schema (id, category, title, content)
+    formatted_docs = []
+    for doc in kb_data["documents"]:
+        formatted_docs.append({
+            "id": doc["id"],
+            "category": doc["category"],
+            "title": doc.get("title", doc["category"]),
+            "content": doc["content"]
+        })
+    init_request = {
+        "kb_data": {
+            "business_name": "Test Store",
+            "domain_description": "Customer service for a retail store",
+            "documents": formatted_docs
+        }
+    }
+    response = client.post("/api/v1/session/init", json=init_request)
+    
+    assert response.status_code == 200
+    result = response.json()
+    
+    assert "session_id" in result
+    assert result["business_name"] == "Test Store"
+    assert result["message"] == "Session initialized successfully."
+
+
 def test_chat_endpoint_in_domain_query(client):
-    """Test POST /api/v1/chat with an in-domain query."""
+    """Test POST /api/v1/chat with an in-domain query after session init."""
+    session_id = create_test_session(client)
     conversations = load_test_conversations()
     in_domain_query = conversations["in_domain_queries"][0]  # "What is your return policy?"
     
     request_data = {
-        "session_id": "test_api_session_001",
+        "session_id": session_id,
         "message": in_domain_query
     }
     
@@ -54,12 +118,13 @@ def test_chat_endpoint_in_domain_query(client):
 
 
 def test_chat_endpoint_off_topic_query(client):
-    """Test POST /api/v1/chat with an off-topic query."""
+    """Test POST /api/v1/chat with an off-topic query after session init."""
+    session_id = create_test_session(client)
     conversations = load_test_conversations()
     off_topic_query = conversations["off_topic_queries"][0]  # "What is the capital of France?"
     
     request_data = {
-        "session_id": "test_api_session_002",
+        "session_id": session_id,
         "message": off_topic_query
     }
     
@@ -83,32 +148,29 @@ def test_chat_endpoint_off_topic_query(client):
     result3 = response3.json()
     assert result3["is_escalated"] is True
     assert result3["strikes"] == 3
+    assert result3["response"] == "Chat diverted/escalated to a human."
 
 
 def test_get_session_endpoint_existing_session(client):
     """Test GET /api/v1/session/{session_id} for an existing session."""
-    # First create a session via chat
-    conversations = load_test_conversations()
-    in_domain_query = conversations["in_domain_queries"][0]
-    
-    chat_request = {
-        "session_id": "test_api_session_003",
-        "message": in_domain_query
-    }
-    client.post("/api/v1/chat", json=chat_request)
+    session_id = create_test_session(client)
     
     # Now get the session
-    response = client.get("/api/v1/session/test_api_session_003")
+    response = client.get(f"/api/v1/session/{session_id}")
     
     assert response.status_code == 200
     session_data = response.json()
     
     assert "session_id" in session_data
-    assert session_data["session_id"] == "test_api_session_003"
+    assert session_data["session_id"] == session_id
     assert "chat_history" in session_data
     assert "drift_strikes" in session_data
     assert "max_strikes" in session_data
     assert "is_escalated" in session_data
+    assert "business_name" in session_data
+    assert "domain_description" in session_data
+    assert "kb_documents" in session_data
+    assert session_data["kb_embeddings"] is None
 
 
 def test_get_session_endpoint_non_existing_session(client):
@@ -119,9 +181,25 @@ def test_get_session_endpoint_non_existing_session(client):
     assert response.json()["detail"] == "Session not found"
 
 
+def test_chat_endpoint_session_not_found(client):
+    """Test POST /api/v1/chat with a non-existing session_id."""
+    conversations = load_test_conversations()
+    in_domain_query = conversations["in_domain_queries"][0]
+    
+    request_data = {
+        "session_id": "non_existent_session_999",
+        "message": in_domain_query
+    }
+    
+    response = client.post("/api/v1/chat", json=request_data)
+    
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Session Not Found"
+
+
 def test_reset_session_endpoint(client):
     """Test POST /api/v1/session/reset."""
-    session_id = "test_api_session_004"
+    session_id = create_test_session(client)
     
     # First create a session via chat with an off-topic query to accumulate strikes
     conversations = load_test_conversations()

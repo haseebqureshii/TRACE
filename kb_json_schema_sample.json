@@ -1,0 +1,18 @@
+{
+  "business_name": "Acme Electronics",
+  "domain_description": "Online retailer selling consumer electronics, accessories, and warranties.",
+  "documents": [
+    {
+      "id": "doc_001",
+      "category": "Returns",
+      "topic": "Return Window & Condition",
+      "content": "Customers can return unopened items within 30 days of purchase for a full refund. Opened items incur a 15% restocking fee."
+    },
+    {
+      "id": "doc_002",
+      "category": "Shipping",
+      "topic": "Delivery Timelines",
+      "content": "Standard shipping takes 3-5 business days. Express shipping guarantees delivery within 1-2 business days."
+    }
+  ]
+}

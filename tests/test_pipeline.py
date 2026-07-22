@@ -2,10 +2,19 @@ import json
 import os
 import pytest
 import asyncio
-from src.state import SessionManager, SessionState
+from src.state import SessionManager, SessionState, KBDocument, KBSchema
 from src.pipeline import process_chat_turn
 from src.guardrails.contextualizer import contextualize_query
 from src.guardrails.input_rail import get_kb_retriever
+
+
+def load_kb_documents() -> dict:
+    """Load KB documents from tests/fixtures/kb_documents.json."""
+    fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+    kb_file = os.path.join(fixtures_dir, "kb_documents.json")
+    
+    with open(kb_file, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def load_test_conversations() -> dict:
@@ -15,6 +24,27 @@ def load_test_conversations() -> dict:
     
     with open(conv_file, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def create_test_session_state(session_id: str, kb_data: dict):
+    """Helper to create a test session state with KB data."""
+    retriever = get_kb_retriever()
+    kb_documents = [KBDocument(id=doc["id"], category=doc["category"], title=doc.get("title", doc["category"]), content=doc["content"]) for doc in kb_data["documents"]]
+    kb_embeddings = retriever.embed_kb_documents(kb_documents)
+    
+    state = SessionState(
+        session_id=session_id,
+        business_name=kb_data.get("business_name", "Test Store"),
+        domain_description=kb_data.get("domain_description", "Customer service for a retail store"),
+        kb_documents=kb_documents,
+        kb_embeddings=kb_embeddings,
+        chat_history=[],
+        drift_strikes=0,
+        max_strikes=3,
+        is_escalated=False
+    )
+    SessionManager.update_session(state)
+    return state
 
 
 @pytest.fixture(autouse=True)
@@ -49,6 +79,9 @@ async def test_multi_turn_pronoun_contextualization():
 async def test_successful_in_domain_rag_response():
     """Test successful in-domain RAG response execution."""
     session_id = "test_session_rag_001"
+    kb_data = load_kb_documents()
+    create_test_session_state(session_id, kb_data)
+    
     conversations = load_test_conversations()
     in_domain_query = conversations["in_domain_queries"][0]  # "What is your return policy?"
     
@@ -74,6 +107,9 @@ async def test_successful_in_domain_rag_response():
 async def test_off_topic_query_detection_and_strike_incrementation():
     """Test off-topic query detection and invisible strike counter incrementation."""
     session_id = "test_session_strikes_001"
+    kb_data = load_kb_documents()
+    create_test_session_state(session_id, kb_data)
+    
     conversations = load_test_conversations()
     off_topic_query = conversations["off_topic_queries"][0]  # "What is the capital of France?"
     
@@ -97,14 +133,17 @@ async def test_off_topic_query_detection_and_strike_incrementation():
     
     assert result3["is_escalated"] is True
     assert result3["strikes"] == 3
-    assert "Max drift strikes reached" in result3["rationale"]
-    assert "human customer support specialist" in result3["response"]
+    assert result3["response"] == "Chat diverted/escalated to a human."
+    assert result3["rationale"] == "Escalation active."
 
 
 @pytest.mark.asyncio
 async def test_human_escalation_trigger_when_strikes_hit_max():
     """Test human escalation trigger when strikes hit max_strikes."""
     session_id = "test_session_escalation_002"
+    kb_data = load_kb_documents()
+    create_test_session_state(session_id, kb_data)
+    
     conversations = load_test_conversations()
     off_topic_query = conversations["off_topic_queries"][1]  # "Tell me a joke"
     
@@ -120,24 +159,27 @@ async def test_human_escalation_trigger_when_strikes_hit_max():
     
     assert result["is_escalated"] is True
     assert result["strikes"] == 3
-    assert "Max drift strikes reached" in result["rationale"]
-    assert "I am connecting you with a human customer support specialist" in result["response"]
+    assert result["response"] == "Chat diverted/escalated to a human."
+    assert result["rationale"] == "Escalation active."
     
-    # Subsequent queries should return the escalation handoff response
+    # Subsequent queries should return the short-circuit escalation response
     result2 = await process_chat_turn(session_id, "What is your return policy?")
     
     assert result2["is_escalated"] is True
-    assert result2["response"] == "A human agent has been notified and will take over shortly."
+    assert result2["response"] == "Chat diverted/escalated to a human."
+    assert result2["rationale"] == "Escalation active."
 
 
 @pytest.mark.asyncio
 async def test_kb_retriever_relevance_evaluation():
     """Test KBRetriever relevance evaluation with in-domain and off-domain queries."""
     retriever = get_kb_retriever()
+    kb_data = load_kb_documents()
+    state = create_test_session_state("test_kb_retriever_session", kb_data)
     
     # In-domain query
     in_domain_query = "What is your return policy for opened items?"
-    in_domain_result = retriever.evaluate_relevance_and_retrieve(in_domain_query, threshold=0.30, top_k=2)
+    in_domain_result = retriever.evaluate_relevance_and_retrieve(in_domain_query, state, threshold=0.30, top_k=2)
     
     assert in_domain_result["is_relevant"] is True
     assert in_domain_result["score"] >= 0.30
@@ -145,6 +187,28 @@ async def test_kb_retriever_relevance_evaluation():
     
     # Off-domain query
     off_domain_query = "What is the capital of Japan?"
-    off_domain_result = retriever.evaluate_relevance_and_retrieve(off_domain_query, threshold=0.30, top_k=2)
+    off_domain_result = retriever.evaluate_relevance_and_retrieve(off_domain_query, state, threshold=0.30, top_k=2)
     
     assert off_domain_result["is_relevant"] is False or off_domain_result["score"] < 0.30
+
+
+@pytest.mark.asyncio
+async def test_short_circuit_escalation_logic():
+    """Test that when drift_strikes reaches max, the pipeline instantly returns 'Chat diverted/escalated to a human.' without invoking external LLM APIs."""
+    session_id = "test_session_short_circuit_001"
+    kb_data = load_kb_documents()
+    state = create_test_session_state(session_id, kb_data)
+    
+    # Set drift_strikes to max_strikes
+    state.drift_strikes = 3
+    state.max_strikes = 3
+    state.is_escalated = False
+    SessionManager.update_session(state)
+    
+    # Query should trigger short-circuit escalation
+    result = await process_chat_turn(session_id, "What is your return policy?")
+    
+    assert result["is_escalated"] is True
+    assert result["strikes"] == 3
+    assert result["response"] == "Chat diverted/escalated to a human."
+    assert result["rationale"] == "Escalation active."

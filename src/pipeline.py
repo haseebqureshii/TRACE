@@ -26,7 +26,7 @@ async def process_chat_turn(session_id: str, user_input: str) -> Dict[str, Any]:
     Process a single chat turn in the customer service pipeline.
     
     1. Fetch SessionState via SessionManager.
-    2. If state.is_escalated is True: return immediate handoff response.
+    2. If state.is_escalated is True OR state.drift_strikes >= state.max_strikes: short-circuit and return escalation response.
     3. Run contextualize_query(user_input, state.chat_history).
     4. Run evaluate_relevance_and_retrieve(contextualized_query).
     5. If is_relevant is False: increment drift_strikes, check max_strikes, escalate or return off-topic response.
@@ -35,12 +35,15 @@ async def process_chat_turn(session_id: str, user_input: str) -> Dict[str, Any]:
     # 1. Fetch SessionState via SessionManager
     state = SessionManager.get_or_create_session(session_id)
     
-    # 2. If state.is_escalated is True: return immediate handoff response
-    if state.is_escalated:
+    # 2. Short-circuit escalation logic: if state.is_escalated is True OR state.drift_strikes >= state.max_strikes
+    if state.is_escalated or state.drift_strikes >= state.max_strikes:
+        state.is_escalated = True
+        SessionManager.update_session(state)
         return {
-            "response": "A human agent has been notified and will take over shortly.",
+            "response": "Chat diverted/escalated to a human.",
             "is_escalated": True,
-            "strikes": state.drift_strikes
+            "strikes": state.drift_strikes,
+            "rationale": "Escalation active."
         }
     
     # 3. Run contextualize_query
@@ -48,7 +51,7 @@ async def process_chat_turn(session_id: str, user_input: str) -> Dict[str, Any]:
     
     # 4. Run evaluate_relevance_and_retrieve
     retriever = get_kb_retriever()
-    retrieval_result = retriever.evaluate_relevance_and_retrieve(contextualized_query)
+    retrieval_result = retriever.evaluate_relevance_and_retrieve(contextualized_query, state)
     
     # 5. If is_relevant is False
     if not retrieval_result["is_relevant"]:
@@ -58,10 +61,10 @@ async def process_chat_turn(session_id: str, user_input: str) -> Dict[str, Any]:
             state.is_escalated = True
             SessionManager.update_session(state)
             return {
-                "response": "I am connecting you with a human customer support specialist who can assist you further.",
+                "response": "Chat diverted/escalated to a human.",
                 "is_escalated": True,
                 "strikes": state.drift_strikes,
-                "rationale": "Max drift strikes reached."
+                "rationale": "Escalation active."
             }
         else:
             SessionManager.update_session(state)
@@ -75,20 +78,17 @@ async def process_chat_turn(session_id: str, user_input: str) -> Dict[str, Any]:
     # 6. If is_relevant is True
     retrieved_contexts = retrieval_result["contexts"]
     
-    # Generate LLM response using retrieved KB contexts in system prompt
+    # Generate LLM response using retrieved KB contexts in system prompt with concise directive
     client, model_id = _get_async_client()
     
     contexts_str = "\n".join([f"- {ctx}" for ctx in retrieved_contexts])
     
-    system_prompt = f"""You are a Drift-Free Customer Service Agent. Your task is to assist customers with their inquiries 
-using ONLY the provided knowledge base contexts. Do not invent or make up policies, information, or answers that are not 
-strictly grounded in the provided contexts.
+    system_prompt = f"""You are a customer service assistant for {state.business_name}. Keep all responses as short, direct, and concise as possible (1–3 sentences maximum). Do not use conversational filler. Strictly answer the query using only the provided context.
 
 Knowledge Base Contexts:
 {contexts_str}
 
-If the user's question cannot be answered using the provided contexts, politely indicate that you don't have that information 
-and suggest they speak with a human customer support specialist."""
+If the user's question cannot be answered using the provided contexts, politely indicate that you don't have that information and suggest they speak with a human customer support specialist."""
 
     try:
         response = await client.chat.completions.create(
