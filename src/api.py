@@ -10,6 +10,12 @@ from src.guardrails.input_rail import get_kb_retriever
 app = FastAPI(title="Drift-Free Customer Service Agent API")
 
 
+@app.get("/health")
+async def health_check():
+    """Lightweight health check endpoint."""
+    return {"status": "ok", "message": "Backend is online and operational."}
+
+
 class ChatRequest(BaseModel):
     session_id: str
     message: str

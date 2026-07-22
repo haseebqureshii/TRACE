@@ -1,11 +1,15 @@
 import os
 import asyncio
 from typing import Dict, Any
+from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from src.state import SessionState, SessionManager
 from src.guardrails.contextualizer import contextualize_query
 from src.guardrails.input_rail import get_kb_retriever
 from src.guardrails.evaluator import validate_output_adherence
+
+# Load environment variables from .env file, overriding system environment variables
+load_dotenv(override=True)
 
 
 def _get_async_client():

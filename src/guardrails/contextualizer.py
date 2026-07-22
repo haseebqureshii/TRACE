@@ -1,6 +1,10 @@
 import os
 from typing import List, Dict
+from dotenv import load_dotenv
 from openai import AsyncOpenAI
+
+# Load environment variables from .env file, overriding system environment variables
+load_dotenv(override=True)
 
 
 def _get_async_client():

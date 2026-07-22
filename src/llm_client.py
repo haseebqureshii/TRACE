@@ -1,5 +1,9 @@
 import os
+from dotenv import load_dotenv
 from openai import OpenAI
+
+# Load environment variables from .env file, overriding system environment variables
+load_dotenv(override=True)
 
 
 def get_llm_client():
