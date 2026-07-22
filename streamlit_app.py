@@ -10,8 +10,14 @@ HEALTH_CHECK_TIMEOUT = 3
 
 
 def get_backend_url():
-    """Get backend URL from environment variable or use default."""
-    return os.getenv("BACKEND_URL", DEFAULT_BACKEND_URL).rstrip("/")
+    """Get backend URL from Streamlit secrets or environment variable."""
+    # Try to get from Streamlit secrets first
+    backend_url = st.secrets.get("BACKEND_URL") if hasattr(st, "secrets") else None
+    
+    if not backend_url:
+        backend_url = os.getenv("BACKEND_URL", DEFAULT_BACKEND_URL)
+    
+    return backend_url.rstrip("/")
 
 
 def check_backend_health(backend_url: str) -> bool:
@@ -50,7 +56,7 @@ def validate_kb_file(uploaded_file) -> tuple[bool, str, dict | None]:
     
     # Validate documents structure
     if not isinstance(data.get("documents"), list):
-        return False, "‘documents’ must be a list.", None
+        return False, "'documents' must be a list.", None
     
     for i, doc in enumerate(data["documents"]):
         if not isinstance(doc, dict):
@@ -118,6 +124,18 @@ if "chat_history" not in st.session_state:
 if "escalated" not in st.session_state:
     st.session_state.escalated = False
 
+if "kb_file_uploaded" not in st.session_state:
+    st.session_state.kb_file_uploaded = False
+
+if "kb_file_validated" not in st.session_state:
+    st.session_state.kb_file_validated = False
+
+if "kb_data" not in st.session_state:
+    st.session_state.kb_data = None
+
+if "init_error" not in st.session_state:
+    st.session_state.init_error = None
+
 
 # Sidebar
 st.sidebar.title("Customer Support Agent")
@@ -128,53 +146,60 @@ if st.session_state.backend_online:
 else:
     st.sidebar.error("🔴 **System Offline**\n\nBackend unreachable.")
 
-# Advanced Settings Expander
-with st.sidebar.expander("⚙️ Advanced Settings"):
-    st.subheader("Backend Settings")
-    backend_url_input = st.text_input(
-        "Backend URL",
-        value=st.session_state.backend_url,
-        help="Enter the backend URL (e.g., http://127.0.0.1:8000 or https://xxxx.ngrok-free.app)"
-    )
-    backend_url_input = backend_url_input.rstrip("/")
-    
-    if backend_url_input != st.session_state.backend_url:
-        st.session_state.backend_url = backend_url_input
-        st.session_state.backend_online = check_backend_health(st.session_state.backend_url)
-        st.rerun()
-
 # KB File Uploader
 st.sidebar.subheader("Knowledge Base")
 uploaded_kb_file = st.sidebar.file_uploader("Upload KB JSON file", type=["json"])
 
+# Handle file upload and validation
 if uploaded_kb_file:
     is_valid, validation_msg, kb_data = validate_kb_file(uploaded_kb_file)
-    if not is_valid:
-        st.sidebar.error(f"Validation error: {validation_msg}")
-    else:
-        st.sidebar.success(f"File validated: {validation_msg}")
-
-# Initialize Session Button
-if st.session_state.backend_online and uploaded_kb_file:
-    is_valid, _, kb_data = validate_kb_file(uploaded_kb_file)
     if is_valid:
-        if st.sidebar.button("Initialize Session", type="primary"):
+        st.session_state.kb_file_uploaded = True
+        st.session_state.kb_file_validated = True
+        st.session_state.kb_data = kb_data
+        st.sidebar.success(f"File validated: {validation_msg}")
+        
+        # Automatically initialize session if backend is online and session not yet initialized
+        if st.session_state.backend_online and not st.session_state.session_id:
             with st.spinner("Initializing session..."):
-                success, msg, result = initialize_session(st.session_state.backend_url, kb_data)
-                if success:
-                    st.session_state.session_id = result["session_id"]
-                    st.session_state.business_name = result["business_name"]
-                    st.session_state.session_status = "Active"
-                    st.session_state.chat_history = []
-                    st.session_state.escalated = False
-                    st.sidebar.success("Session initialized successfully!")
-                else:
-                    st.sidebar.error(f"Initialization failed: {msg}")
+                try:
+                    success, msg, result = initialize_session(st.session_state.backend_url, kb_data)
+                    if success:
+                        st.session_state.session_id = result["session_id"]
+                        st.session_state.business_name = result["business_name"]
+                        st.session_state.session_status = "Active"
+                        st.session_state.chat_history = []
+                        st.session_state.escalated = False
+                        st.session_state.init_error = None
+                        st.sidebar.success("Session initialized successfully!")
+                    else:
+                        st.session_state.init_error = f"Initialization failed: {msg}"
+                        st.sidebar.error(f"Initialization failed: {msg}")
+                        st.session_state.kb_file_validated = False
+                        st.session_state.kb_file_uploaded = False
+                        st.session_state.kb_data = None
+                except Exception as e:
+                    st.session_state.init_error = f"Network error during session initialization: {str(e)}"
+                    st.sidebar.error(f"Network error during session initialization: {str(e)}")
+                    st.session_state.kb_file_validated = False
+                    st.session_state.kb_file_uploaded = False
+                    st.session_state.kb_data = None
+        elif not st.session_state.backend_online:
+            st.sidebar.info("Backend is offline. Cannot initialize session.")
+    else:
+        st.sidebar.error(f"Validation error: {validation_msg}")
+        st.session_state.kb_file_uploaded = False
+        st.session_state.kb_file_validated = False
+        st.session_state.kb_data = None
 else:
-    if not st.session_state.backend_online:
-        st.sidebar.info("Upload a KB file and ensure the backend is online to initialize a session.")
-    elif not uploaded_kb_file:
-        st.sidebar.info("Please upload a valid KB JSON file to initialize a session.")
+    st.sidebar.info("Upload a valid .json Knowledge Base file to automatically start a session.")
+    st.session_state.kb_file_uploaded = False
+    st.session_state.kb_file_validated = False
+    st.session_state.kb_data = None
+
+# Display initialization error if any
+if st.session_state.init_error:
+    st.error(f"⚠️ {st.session_state.init_error}")
 
 # Active Session Info
 st.sidebar.subheader("Active Session")
@@ -187,6 +212,10 @@ if st.session_state.session_id:
         st.session_state.session_status = "Not Initialized"
         st.session_state.chat_history = []
         st.session_state.escalated = False
+        st.session_state.kb_file_uploaded = False
+        st.session_state.kb_file_validated = False
+        st.session_state.kb_data = None
+        st.session_state.init_error = None
         st.rerun()
 else:
     st.sidebar.info("No active session.")
@@ -237,13 +266,10 @@ if st.session_state.backend_online and not st.session_state.escalated and st.ses
             st.session_state.escalated = True
             st.session_state.session_status = "Escalated to Human"
             st.info("ℹ️ This AI session has ended. Your request has been escalated to a human support specialist.")
-            
-            # Clear chat input to prevent further messages
-            st.session_state.chat_input_disabled = True
 else:
     if not st.session_state.backend_online:
         st.chat_input("System is offline", disabled=True)
     elif st.session_state.escalated:
         st.chat_input("Session escalated to human support", disabled=True)
     elif not st.session_state.session_id:
-        st.chat_input("Please initialize a session first", disabled=True)
+        st.chat_input("Upload a valid Knowledge Base .json file to start...", disabled=True)

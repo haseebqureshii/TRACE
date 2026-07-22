@@ -1,18 +1,36 @@
 {
-  "business_name": "Acme Electronics",
-  "domain_description": "Online retailer selling consumer electronics, accessories, and warranties.",
+  "business_name": "Apex Audio",
+  "domain_description": "Manufacturer and online retailer of premium wireless headphones, audio hardware, and accessories.",
   "documents": [
     {
       "id": "doc_001",
-      "category": "Returns",
-      "topic": "Return Window & Condition",
-      "content": "Customers can return unopened items within 30 days of purchase for a full refund. Opened items incur a 15% restocking fee."
+      "title": "Return Policy & Packaging Requirements",
+      "category": "Returns & Refunds",
+      "content": "Customers can return unopened or opened products within 30 days of delivery for a full refund. Items must include original packaging and all accessories. Opened items missing original accessories are subject to a 15% restocking fee."
     },
     {
       "id": "doc_002",
+      "title": "Delivery Options & Timelines",
       "category": "Shipping",
-      "topic": "Delivery Timelines",
-      "content": "Standard shipping takes 3-5 business days. Express shipping guarantees delivery within 1-2 business days."
+      "content": "Standard shipping (3–5 business days) is free on orders over $50. Express shipping (1–2 business days) costs $14.99. International shipping is currently unavailable."
+    },
+    {
+      "id": "doc_003",
+      "title": "Limited Hardware Coverage",
+      "category": "Warranty",
+      "content": "All headphones come with a 1-year limited hardware warranty covering internal component failures and manufacturing defects. Water damage beyond the IPX4 rating and physical drops are not covered."
+    },
+    {
+      "id": "doc_004",
+      "title": "Factory Reset Instructions",
+      "category": "Troubleshooting",
+      "content": "To factory reset Apex wireless headphones, hold the Power and Volume Down buttons simultaneously for 8 seconds until the status LED flashes red twice. This clears all paired Bluetooth devices."
+    },
+    {
+      "id": "doc_005",
+      "title": "Order Cancellation Window",
+      "category": "Orders",
+      "content": "Orders can be canceled or modified within 45 minutes of placement through the order status page. Once an order status changes to 'Processing', it cannot be canceled and must be returned after delivery."
     }
   ]
 }
